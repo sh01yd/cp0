@@ -14,6 +14,10 @@ from openai import OpenAI
 import json
 from io import BytesIO
 from PIL import Image
+from dotenv import load_dotenv
+
+# 加载环境变量
+load_dotenv("Agent.env")
 
 
 class LLMConfig:
@@ -24,7 +28,7 @@ class LLMConfig:
     
     # 模型名称配置
     VL_MODEL = 'Qwen/Qwen3-VL-8B-Instruct' # 当前可用的VL模型
-    QWEN3_TEXT_MODEL = 'Qwen/Qwen3-235B-A22B-Instruct-2507'
+    TEXT_MODEL = 'Qwen/Qwen3-235B-A22B-Instruct-2507'
     
     @classmethod
     def get_api_key(cls) -> str:
@@ -183,7 +187,7 @@ class TextLanguageModel(BaseModelClient):
     
     def __init__(self, api_key: Optional[str] = None):
         super().__init__(api_key)
-        self.model_name = LLMConfig.QWEN3_TEXT_MODEL
+        self.model_name = LLMConfig.TEXT_MODEL
     
     def enhance_description(self, image_description: str, context_before: str = "", 
                           context_after: str = "", source_file: str = "") -> str:

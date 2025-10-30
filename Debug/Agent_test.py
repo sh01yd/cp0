@@ -37,7 +37,7 @@ class InteractiveAgent:
                 "论文助手": RAG_paper
             }
 
-            self.llm = LLM_model()
+            self.llm = LLM_model("校园知识问答助手")
             self.llm.start_LLM()
 
 

@@ -85,8 +85,10 @@ class RAG():
             embedding_model=self.model,
             cross_encoder1=self.cross_encoder
         )
-        
-        for delta in self.llm.call_llm_stream(query, chunks):
+        # 将检索到的字典片段安全格式化为字符串，避免后续 join 失败
+        formatted_chunks = self._format_chunks_for_prompt(chunks)
+
+        for delta in self.llm.call_llm_stream(query, formatted_chunks):
             yield delta
 
     def call_RAG(self, query):
@@ -101,8 +103,38 @@ class RAG():
             embedding_model=self.model,
             cross_encoder1=self.cross_encoder
         )
-        
-        return self.llm.call_llm(query, chunks)
+        # 将检索到的字典片段安全格式化为字符串，避免后续 join 失败
+        formatted_chunks = self._format_chunks_for_prompt(chunks)
+
+        return self.llm.call_llm(query, formatted_chunks)
+
+    def _format_chunks_for_prompt(self, chunks):
+        """将检索到的片段（可能包含字典）统一格式化为字符串列表。
+        - 文本片段: 直接添加其内容
+        - 图片片段(type==1): 添加"[图片内容] 描述 [图片地址: 路径]" 或无路径时仅添加内容
+        """
+        formatted = []
+        if not chunks:
+            return formatted
+        for item in chunks:
+            try:
+                if isinstance(item, dict):
+                    t = item.get('type', 0)
+                    doc = item.get('document', '')
+                    src = item.get('source', '')
+                    if t == 1:
+                        if src:
+                            formatted.append(f"[图片内容] {doc} [图片地址: {src}]")
+                        else:
+                            formatted.append(f"[图片内容] {doc}")
+                    else:
+                        formatted.append(str(doc))
+                else:
+                    formatted.append(str(item))
+            except Exception:
+                # 兜底：无法解析的项直接转字符串
+                formatted.append(str(item))
+        return formatted
 
 #====================子类助手====================
 #心理助手
@@ -126,7 +158,7 @@ class RAG_fitness(RAG):
 #校园知识问答
 class RAG_compus(RAG):
     def __init__(self):
-        compus_id= os.getenv("APP_ID_COMPUS")
+        compus_id= os.getenv("APP_ID_CAMPUS") 
         self.index_path = str(CAMPUS_INDEX_DIR)      # ✅ 正确路径
         self.collection = "campus_docs"               # ✅ 正确集合名
         self.llm = LLM_compus(app_id=compus_id)

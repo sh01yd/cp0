@@ -1,5 +1,6 @@
 #=====================这是接受用户信息，获取回答的主函数===================
 import os
+import re
 from dotenv import load_dotenv
 from IntentRecognition.Intent_by_Rag import RagQueryEnhancer
 from RAGlibrary import RAG_psychology, RAG_fitness, RAG_compus, RAG_paper
@@ -50,7 +51,7 @@ class InteractiveAgent:
                 "校园知识问答助手": RAG_compus,
                 "论文助手": RAG_paper
             }
-            self.llm = LLM_model()
+            self.llm = LLM_model("校园知识问答助手")
             self.llm.start_LLM()
             # 意图到头像的映射关系
             self.intent_avatar_mapping = {
@@ -153,7 +154,19 @@ class InteractiveAgent:
                 # 根据意图选择Agent并调用
                 if Rag_intent == "校园知识问答助手":
                     string_generator = self.llm.retrieve_and_answer(original_query, top_k=8)
-                    answer = "".join(string_generator)
+                    # 安全地聚合段落，支持字典与字符串块
+                    answer_parts = []
+                    for chunk in string_generator:
+                        if isinstance(chunk, dict):
+                            # 禁用图片块：仅处理非图片类型的文本块
+                            if chunk.get("type") != 1:
+                                doc = chunk.get("document", "") or chunk.get("description", "")
+                                if doc:
+                                    answer_parts.append(doc)
+                        else:
+                            # 其他类型（如字符串）直接拼接
+                            answer_parts.append(str(chunk))
+                    answer = "\n".join([p for p in answer_parts if p])
                 else:
                     rag_agent = self.get_rag_agent(Rag_intent)
                     if rag_agent:
@@ -183,50 +196,39 @@ class InteractiveAgent:
                         continue
 
                     Rag_intent = item["intent"]
-                    rewritten_query = item["rewritten_query"]
                     avatar = self.intent_avatar_mapping.get(Rag_intent, self.intent_avatar_mapping["其他"])
 
-                    # 定义一个生成器变量，用来接收来自不同智能体的段落流
-                    paragraph_generator = None
-
                     try:
-                        if Rag_intent == "校园知识问答助手":
-                            paragraph_generator = self.llm.retrieve_and_answer(original_query, top_k=8)
-                        else:
+                        # 统一逻辑：所有意图均使用统一的 LLM_model 检索 + 图片输出
+                        try:
+                            from callback import LLM_model as UnifiedLLM
+                            llm_agent = UnifiedLLM(Rag_intent)
+                            paragraph_generator = llm_agent.retrieve_and_answer(original_query, top_k=8)
+                        except Exception:
+                            # 兜底：如果统一模型初始化失败，则回退到原有RAG路径
                             rag_agent = self.get_rag_agent(Rag_intent)
-                            if rag_agent:
-                                paragraph_generator = rag_agent.call_RAG_stream(original_query)
-                            else:
-                                # 如果智能体不存在，则生成一个包含错误信息的段落
-                                paragraph_generator = iter(["抱歉，暂不支持此意图。"])
+                            paragraph_generator = rag_agent.call_RAG_stream(original_query) if rag_agent else iter(["抱歉，暂不支持此意图。"])
 
                         # 统一处理所有段落流
                         for paragraph in paragraph_generator:
                             # 检查是否是字典类型（可能包含图片信息）
                             if isinstance(paragraph, dict):
-                                # 如果是图片类型的结果
-                                if paragraph.get("type") == 1:  # 图片描述
-                                    yield {
-                                        "type": "image",
-                                        "intent": Rag_intent,
-                                        "avatar": avatar,
-                                        "image_path": paragraph.get("source", ""),
-                                        "description": paragraph.get("document", "")
-                                    }
-                                else:  # 普通文本
+                        # 禁用图片块输出：跳过图片类型结果处理
+                                if paragraph.get("type") != 1:  # 仅处理非图片类型文本
                                     yield {
                                         "type": "content",
                                         "intent": Rag_intent,
                                         "avatar": avatar,
                                         "delta": paragraph.get("document", "")
-                                    }
+                            }
                             else:
                                 # 为普通文本创建一个包含所有信息的、完整的消息包
                                 yield {
                                     "type": "content",
                                     "intent": Rag_intent,
                                     "avatar": avatar,
-                                    "delta": paragraph  # paragraph 就是我们的一整段话
+                                    # 直接处理字符串块，避免对 str 调用 get
+                                    "delta": paragraph if isinstance(paragraph, str) else str(paragraph)
                                 }
 
                     except Exception as e:
@@ -284,16 +286,19 @@ class InteractiveAgent:
                         if chunk.get('type') == 'content':
                             avatar = chunk.get('avatar', '🤖')
                             paragraph = chunk.get('delta', '')
+                            # 清理输出中的 Markdown 加粗等符号，避免终端出现**
+                            paragraph = re.sub(r"\*\*|__", "", paragraph)
                             # 模拟前端渲染：每一段都带上自己的头像信息
                             print(f"头像: {avatar} | 回答段落: {paragraph}")
                             
-                        elif chunk.get('type') == 'image':
-                            avatar = chunk.get('avatar', '🤖')
-                            image_path = chunk.get('image_path', '')
-                            description = chunk.get('description', '')
-                            # 显示图片信息
-                            print(f"头像: {avatar} | 图片: {image_path}")
-                            print(f"图片描述: {description}")
+                        # elif chunk.get('type') == 'image':
+                        #     avatar = chunk.get('avatar', '🤖')
+                        #     image_path = chunk.get('image_path', '')
+                        #     description = chunk.get('description', '')
+                        #     description = re.sub(r"\*\*|__", "", description)
+                        #     # 显示图片信息
+                        #     print(f"头像: {avatar} | 图片: [{image_path}]")
+                        #     print(f"图片描述: {description}")
 
                         elif chunk.get('type') == 'break':
                             print("--- (一个意图回答结束) ---\n")

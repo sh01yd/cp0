@@ -1,19 +1,22 @@
 from dashscope import Application
 from http import HTTPStatus
 import os
-import json
+from dotenv import load_dotenv
 
 
 class LLM_model:
     def __init__(self, app_id=None):
+
+        load_dotenv("Agent.env")
         self.session_id = "default_session"
-        self.app_id = app_id or os.getenv("LLM_appid") or 'a9865e510ef540f08774d0ae31d22ad2'
-        self.api_key = os.getenv("BAILIAN_API_KEY") or 'sk-93817db303964020bbc79b017be4768b'
+        # 从 Agent.env 读取
+        self.app_id = app_id or os.getenv("LLM_appid") or ""
+        self.api_key = os.getenv("BAILIAN_API_KEY") or ""
 
         if not self.api_key:
-            raise ValueError("请设置 BAILIAN_API_KEY")
+            raise ValueError("请设置 BAILIAN_API_KEY 于 Agent.env")
         if not self.app_id:
-            raise ValueError("请提供 app_id 或设置 LLM_appid")
+            raise ValueError("请提供 app_id 或在 Agent.env 设置 LLM_appid")
 
     def start_LLM(self):
         return f"LLM model started successfully with APP_ID: {self.app_id}"
@@ -28,44 +31,24 @@ class LLM_model:
         """
         return """你是一位知识助手，你需要模仿人类的对话风格简洁输出，将你的回答拆分成3到5个自然段落，首先要确保你的回答拼起来是连贯的，符合人类讲出来的，其次是段与段之间要在语义和逻辑上相互承接。每个段落结束后，必须使用特殊标记 `[NEW_PARAGRAPH]` 作为换段标志。请不要在回答中使用任何表情符号。字数控制在100字以内"""
 
-    def _to_safe_chunks(self, lst):
-        """
-        将检索到的片段安全转换为字符串列表，避免 join 类型错误。
-        支持字典项（可能包含图片信息）和普通字符串。
-        """
-        safe = []
-        for item in lst:
-            if isinstance(item, dict):
-                desc = item.get('document') or item.get('content') or ''
-                path = item.get('source') or item.get('path') or ''
-                if desc and path:
-                    safe.append(f"[图片内容] {desc} [图片地址: {path}]")
-                elif desc:
-                    safe.append(str(desc))
-                else:
-                    safe.append(json.dumps(item, ensure_ascii=False))
-            else:
-                safe.append(str(item))
-        return safe
-
     def call_llm(self, query, list) -> str:
         separator = "\n\n"
         system_prompt = self.get_system_prompt()
-        # 修复：安全转换列表为字符串，避免 join 出现 dict 类型
-        safe_chunks = self._to_safe_chunks(list)
         prompt = f"""{system_prompt}
 
 用户问题: {query}
 
 相关片段:
-{separator.join(safe_chunks)}
+{separator.join(list)}
 
 请基于上述内容作答，不要编造信息，不要使用表情符号。"""
 
         resp = Application.call(api_key=self.api_key, app_id=self.app_id, prompt=prompt, session_id=self.session_id)
         if resp.status_code != HTTPStatus.OK:
             raise RuntimeError(f"API调用失败: {resp}")
-        return resp.output.text
+        raw_text = resp.output.text
+        # 在模型输出中将占位符 [具体路径] 替换为检索到的图片地址（如果有）
+        return self._substitute_image_placeholders(raw_text, list)
 
     def call_llm_stream(self, query, list):
         """
@@ -80,8 +63,6 @@ class LLM_model:
         """
         separator = "\n\n"
         system_prompt = self.get_stream_system_prompt()
-        # 修复：安全转换列表为字符串，避免 join 出现 dict 类型
-        safe_chunks = self._to_safe_chunks(list)
         prompt = f"""{system_prompt}
 
 请根据用户的问题和下面的背景知识进行简洁回答。
@@ -89,7 +70,7 @@ class LLM_model:
 用户问题: {query}
 
 背景知识:
-{separator.join(safe_chunks)}
+{separator.join(list)}
 
 若用户问题与背景知识无关，则用通用知识解决问题。请记住，你的回答必须被 `[NEW_PARAGRAPH]` 分隔成3到5段。
 
@@ -110,6 +91,8 @@ class LLM_model:
                 request_id = response.request_id
                 print(f"成功获取到回答，Request ID: {request_id}")  # 你可以在这里打印或记录它
                 full_response_text = response.output.text
+                # 在模型输出中将占位符 [具体路径] 替换为检索到的图片地址（如果有）
+                full_response_text = self._substitute_image_placeholders(full_response_text, list)
             else:
                 error_message = f'API Error: {response.code} {response.message}'
                 print(error_message)
@@ -127,6 +110,44 @@ class LLM_model:
             cleaned_para = para.strip()
             if cleaned_para:  # 确保不返回空段落
                 yield cleaned_para
+
+    def _substitute_image_placeholders(self, response_text: str, chunks: list) -> str:
+        """将响应中的占位符 [具体路径] 依次替换为 chunks 提供的图片路径。
+        - 从 chunks 中提取 '[图片地址: ...]' 或 '[地址: ...]' 字样的路径
+        - 若出现多个占位符，按顺序替换；路径不足时保留占位符
+        """
+        if not response_text or not chunks:
+            return response_text
+
+        import re
+        paths = []
+        for c in chunks:
+            try:
+                s = str(c)
+            except Exception:
+                continue
+            for m in re.finditer(r"\[图片地址:\s*(.*?)\]", s):
+                p = m.group(1).strip()
+                if p:
+                    paths.append(p)
+            for m in re.finditer(r"\[地址:\s*(.*?)\]", s):
+                p = m.group(1).strip()
+                if p:
+                    paths.append(p)
+
+        if not paths:
+            return response_text
+
+        def repl(match_iter_text: str) -> str:
+            # 逐个替换 [具体路径]
+            result = match_iter_text
+            count = 0
+            while "[具体路径]" in result and count < len(paths):
+                result = result.replace("[具体路径]", paths[count], 1)
+                count += 1
+            return result
+
+        return repl(response_text)
 
 
 # --- 修改部分：在这里我更新了所有子类的流式Prompt ---

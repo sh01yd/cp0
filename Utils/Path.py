@@ -44,29 +44,41 @@ PAPER_IMAGES_DIR = ALL_PROCESSED_IMAGES_DIR / "paper"
 FITNESS_IMAGES_DIR = ALL_PROCESSED_IMAGES_DIR / "fitness"
 PSYCHOLOGY_IMAGES_DIR = ALL_PROCESSED_IMAGES_DIR / "psychology"
 
-# 各个智能体图片处理后提取图片的文件路径
+# 校园助手
 CAMPUS_PROCESSED_EXTRACTED_IMAGES = CAMPUS_IMAGES_DIR / "campus_extracted_images.docx"
-FITNESS_PROCESSED_EXTRACTED_IMAGES = FITNESS_IMAGES_DIR / "fitness_extracted_images.docx"
-PAPER_PROCESSED_EXTRACTED_IMAGES = PAPER_IMAGES_DIR / "paper_extracted_images.docx"
-PSYCHOLOGY_PROCESSED_EXTRACTED_IMAGES = PSYCHOLOGY_IMAGES_DIR / "psychology_extracted_images.docx"
-
-# 提取图片后转的json文件路径
 CAMPUS_EXTRACTED_IMAGES_JSON = CAMPUS_IMAGES_DIR / "campus_extracted_images.json"
-FITNESS_EXTRACTED_IMAGES_JSON = FITNESS_IMAGES_DIR / "fitness_extracted_images.json"
-PAPER_EXTRACTED_IMAGES_JSON = PAPER_IMAGES_DIR / "paper_extracted_images.json"
-PSYCHOLOGY_EXTRACTED_IMAGES_JSON = PSYCHOLOGY_IMAGES_DIR / "psychology_extracted_images.json"
-
-# 图片映射文件路径
 CAMPUS_IMAGES_MAPPING_PATH = CAMPUS_IMAGES_DIR / "campus_images_mapping.json"
-FITNESS_IMAGES_MAPPING_PATH = FITNESS_IMAGES_DIR / "fitness_images_mapping.json"
-PAPER_IMAGES_MAPPING_PATH = PAPER_IMAGES_DIR / "paper_images_mapping.json"
-PSYCHOLOGY_IMAGES_MAPPING_PATH = PSYCHOLOGY_IMAGES_DIR / "psychology_images_mapping.json"
-
-# 提取的图片文件路径
 CAMPUS_IMAGES_PATH = CAMPUS_IMAGES_DIR / "campus_processed_images"
-FITNESS_IMAGES_PATH = FITNESS_IMAGES_DIR / "fitness_processed_images"
+
+# 论文助手
+PAPER_PROCESSED_EXTRACTED_IMAGES = PAPER_IMAGES_DIR / "paper_extracted_images.docx"
+PAPER_EXTRACTED_IMAGES_JSON = PAPER_IMAGES_DIR / "paper_extracted_images.json"
+PAPER_IMAGES_MAPPING_PATH = PAPER_IMAGES_DIR / "paper_images_mapping.json"
 PAPER_IMAGES_PATH = PAPER_IMAGES_DIR / "paper_processed_images"
+
+# 健身助手
+FITNESS_PROCESSED_EXTRACTED_IMAGES = FITNESS_IMAGES_DIR / "fitness_extracted_images.docx"
+FITNESS_EXTRACTED_IMAGES_JSON = FITNESS_IMAGES_DIR / "fitness_extracted_images.json"
+FITNESS_IMAGES_MAPPING_PATH = FITNESS_IMAGES_DIR / "fitness_images_mapping.json"
+FITNESS_IMAGES_PATH = FITNESS_IMAGES_DIR / "fitness_processed_images"
+
+# 心理助手
+PSYCHOLOGY_PROCESSED_EXTRACTED_IMAGES = PSYCHOLOGY_IMAGES_DIR / "psychology_extracted_images.docx"
+PSYCHOLOGY_EXTRACTED_IMAGES_JSON = PSYCHOLOGY_IMAGES_DIR / "psychology_extracted_images.json"
+PSYCHOLOGY_IMAGES_MAPPING_PATH = PSYCHOLOGY_IMAGES_DIR / "psychology_images_mapping.json"
 PSYCHOLOGY_IMAGES_PATH = PSYCHOLOGY_IMAGES_DIR / "psychology_processed_images"
+
+# 健身助手图片映射与存储路径
+FITNESS_IMAGES_MAPPING_PATH = FITNESS_IMAGES_DIR / "fitness_images_mapping.json"
+FITNESS_IMAGES_PATH = FITNESS_IMAGES_DIR / "fitness_processed_images"
+
+# 心理助手图片映射与存储路径
+PSYCHOLOGY_IMAGES_MAPPING_PATH = PSYCHOLOGY_IMAGES_DIR / "psychology_images_mapping.json"
+PSYCHOLOGY_IMAGES_PATH = PSYCHOLOGY_IMAGES_DIR / "psychology_processed_images"
+
+# 论文助手图片映射与存储路径（如需要）
+PAPER_IMAGES_MAPPING_PATH = PAPER_IMAGES_DIR / "paper_images_mapping.json"
+PAPER_IMAGES_PATH = PAPER_IMAGES_DIR / "paper_processed_images"
 
 # ==============================
 # --- 目录验证 ---
